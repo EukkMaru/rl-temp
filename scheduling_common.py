@@ -1,11 +1,4 @@
-"""
-Common scheduling MDP utilities and base environments.
-
-The concrete wrappers live in:
-    - disk_scheduling_env.py
-    - elevator_scheduling_env.py
-    - cpu_scheduling_env.py
-"""
+"""Shared pieces for the scheduling environments."""
 
 from __future__ import annotations
 
@@ -40,19 +33,7 @@ def mask_count(mask: int) -> int:
 
 
 class BaseSchedulingEnv(ABC):
-    """
-    Base class for finite stochastic scheduling MDPs.
-
-    Subclasses define:
-        - states
-        - actions
-        - start_state
-        - _apply_action_no_arrival(state, action)
-        - _arrival_outcomes(post_action_state)
-        - _sample_arrival(post_action_state)
-        - _state_label(state)
-        - _action_symbol(action)
-    """
+    """Base class for the small finite MDPs used in this project."""
 
     def __init__(self, seed: int | None = None):
         self.rng = random.Random(seed)
@@ -60,7 +41,7 @@ class BaseSchedulingEnv(ABC):
         self._reward_cache: Dict[Tuple[tuple, str], float] = {}
 
     def is_terminal(self, state):
-        # These are continuing tasks. Use max_steps in agents/experiments.
+        # Episodes stop by horizon, not by terminal states.
         return False
 
     def get_random_policy(self):
@@ -70,20 +51,17 @@ class BaseSchedulingEnv(ABC):
         return policy
 
     def next_state(self, state, action):
-        # Deterministic representative transition used only as a fallback.
-        # step() should be used for sampled RL; transition_prob() should be used for DP.
+        # Deterministic action effect before stochastic arrivals.
         post_state, _, _ = self._apply_action_no_arrival(state, action)
         return post_state
 
     def step(self, state, action):
-        """Sample one transition using the stochastic arrival process."""
         post_state, reward, _info = self._apply_action_no_arrival(state, action)
         next_state = self._sample_arrival(post_state)
         done = self.is_terminal(next_state)
         return next_state, reward, done
 
     def transition_prob(self, s_next, state, action):
-        """Exact transition probability P(s'|s,a), enumerating arrivals."""
         key = (state, action)
         if key not in self._transition_cache:
             post_state, _reward, _info = self._apply_action_no_arrival(state, action)
@@ -94,12 +72,7 @@ class BaseSchedulingEnv(ABC):
         return self._transition_cache[key].get(s_next, 0.0)
 
     def reward(self, state, action, s_next):
-        """
-        Reward R(s,a,s').
-
-        The reward is computed immediately after the action effect and before
-        stochastic arrivals. This keeps the reward stable and interpretable.
-        """
+        # Reward is based on the action effect; arrivals only affect the next state.
         key = (state, action)
         if key not in self._reward_cache:
             _post_state, reward, _info = self._apply_action_no_arrival(state, action)
@@ -151,12 +124,7 @@ class BaseSchedulingEnv(ABC):
 
 
 class LinearRequestSchedulingEnv(BaseSchedulingEnv):
-    """
-    Shared core for one-dimensional request scheduling.
-
-    Disk and elevator scheduling differ mostly in labels and action names; this
-    class holds their common state, movement, service, and request-arrival logic.
-    """
+    """Common line-based request model used by disk and elevator examples."""
 
     def __init__(
         self,

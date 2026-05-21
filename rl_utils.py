@@ -1,4 +1,4 @@
-"""Small tabular RL helper functions used by the scheduling experiments."""
+"""Helper functions for tabular policies and Q tables."""
 
 from __future__ import annotations
 

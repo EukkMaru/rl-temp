@@ -1,12 +1,4 @@
-"""
-Print text-based policy visualizations for the scheduling MDPs.
-
-Run:
-    python visualize_scheduling_policies.py
-
-Optional:
-    python visualize_scheduling_policies.py > policy_visualization.txt
-"""
+"""Text view of a few rollout traces."""
 
 from __future__ import annotations
 
@@ -191,7 +183,7 @@ def visualize_disk():
         print_policy_run(name, frames, lambda frame: render_disk_frame(env, frame), selected)
 
     for name, env, policy, selected in train_learning_policies(
-            lambda seed: DiskSchedulingEnv(n_tracks=4, request_prob=0.08, seed=seed),
+        lambda seed: DiskSchedulingEnv(n_tracks=4, request_prob=0.08, seed=seed),
         train_episodes=VIS_TRAIN_EPISODES,
         max_steps=100,
         seed_base=110,
@@ -217,7 +209,7 @@ def visualize_elevator():
         print_policy_run(name, frames, lambda frame: render_elevator_frame(env, frame), selected)
 
     for name, env, policy, selected in train_learning_policies(
-            lambda seed: ElevatorSchedulingEnv(n_floors=4, request_prob=0.10, seed=seed),
+        lambda seed: ElevatorSchedulingEnv(n_floors=4, request_prob=0.10, seed=seed),
         train_episodes=VIS_TRAIN_EPISODES,
         max_steps=100,
         seed_base=210,
@@ -244,7 +236,7 @@ def visualize_cpu():
         print_policy_run(name, frames, lambda frame: render_cpu_frame(env, frame), selected)
 
     for name, env, policy, selected in train_learning_policies(
-            lambda seed: CPUSchedulingEnv(max_queue=2, arrival_probs=(0.35, 0.25, 0.15), seed=seed),
+        lambda seed: CPUSchedulingEnv(max_queue=2, arrival_probs=(0.35, 0.25, 0.15), seed=seed),
         train_episodes=CPU_VIS_TRAIN_EPISODES,
         max_steps=100,
         seed_base=310,
@@ -256,7 +248,7 @@ def visualize_cpu():
 def main():
     print("Scheduling Policy CLI Visualization", flush=True)
     print(f"Showing {STEPS} sampled steps per policy from the same domain-specific start state.", flush=True)
-    print("Q-learning is marked as the selected model-free RL solution.", flush=True)
+    print("Q-learning is the selected method.", flush=True)
     visualize_disk()
     visualize_elevator()
     visualize_cpu()

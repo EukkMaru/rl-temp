@@ -1,12 +1,4 @@
-"""
-Compatibility imports for scheduling MDP environments.
-
-Shared code now lives in scheduling_common.py, and concrete wrappers live in
-their own modules:
-    - disk_scheduling_env.py
-    - elevator_scheduling_env.py
-    - cpu_scheduling_env.py
-"""
+"""Convenience imports for the environment classes."""
 
 from scheduling_common import (
     BaseSchedulingEnv,

@@ -1,15 +1,4 @@
-"""
-Experiment script for generic scheduling MDP wrappers.
-
-It compares:
-    - heuristic policies
-    - DP value iteration
-    - SARSA
-    - Q-learning
-
-Run:
-    python experiment_scheduling.py
-"""
+"""Run the scheduling policy comparisons."""
 
 import random
 
@@ -76,7 +65,7 @@ def run_env(name, env, heuristics, num_episodes=6000, max_steps=200):
     sarsa_result = evaluate_scheduling_policy(env, sarsa_policy, num_episodes=500, max_steps=max_steps)
     rows.append({"name": "SARSA", "avg_return": sarsa_result["avg_return"], "stderr": sarsa_result["stderr"]})
 
-    # Q-learning: selected model-free RL solution.
+    # Q-learning is the method we report as the main learned policy.
     random.seed(0)
     env.rng.seed(0)
     q_agent = QLearningAgent(env, gamma=gamma, alpha=alpha, epsilon=epsilon, max_steps=max_steps)

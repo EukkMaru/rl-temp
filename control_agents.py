@@ -1,4 +1,4 @@
-"""Classical tabular model-free control agents."""
+"""Tabular control agents."""
 
 from __future__ import annotations
 
@@ -8,8 +8,6 @@ from rl_utils import epsilon_greedy_action, make_Q
 
 
 class SARSAAgent:
-    """On-policy one-step SARSA control."""
-
     def __init__(self, env, gamma=0.95, alpha=0.10, epsilon=0.10, max_steps=200):
         self.env = env
         self.gamma = gamma
@@ -44,8 +42,6 @@ class SARSAAgent:
 
 
 class QLearningAgent:
-    """Off-policy one-step Q-learning control."""
-
     def __init__(self, env, gamma=0.95, alpha=0.10, epsilon=0.10, max_steps=200):
         self.env = env
         self.gamma = gamma
@@ -80,8 +76,6 @@ class QLearningAgent:
 
 
 class MonteCarloControlAgent:
-    """First-visit epsilon-soft Monte Carlo control."""
-
     def __init__(self, env, gamma=0.95, epsilon=0.10, max_steps=200):
         self.env = env
         self.gamma = gamma
