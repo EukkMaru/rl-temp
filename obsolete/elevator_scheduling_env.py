@@ -15,8 +15,7 @@ class ElevatorSchedulingEnv(LinearRequestSchedulingEnv):
     Actions:
         move_down, move_up, open, wait
 
-    This simplified wrapper models pickup calls only. It is intentionally kept
-    small so that exact DP and tabular RL are both feasible.
+    This wrapper models pickup calls only and uses a small finite state space.
     """
 
     def __init__(self, n_floors=5, request_prob=0.10, **kwargs):

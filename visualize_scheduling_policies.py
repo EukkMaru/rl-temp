@@ -1,4 +1,4 @@
-"""Text view of a few rollout traces."""
+"""Text view of CPU scheduling rollout traces."""
 
 from __future__ import annotations
 
@@ -6,32 +6,18 @@ import random
 
 from control_agents import MonteCarloControlAgent, QLearningAgent, SARSAAgent
 from cpu_scheduling_env import CPUSchedulingEnv
-from disk_scheduling_env import DiskSchedulingEnv
 from dp_solver import DynamicProgrammingSolver
-from elevator_scheduling_env import ElevatorSchedulingEnv
 from rl_utils import greedy_policy_from_Q
-from scheduling_common import bit_is_set, set_bit
 from scheduling_policies import (
     cpu_longest_job_first_policy,
     cpu_max_queue_policy,
     cpu_shortest_job_first_policy,
     cpu_sticky_policy,
-    linear_look_policy,
-    linear_nearest_request_policy,
-    linear_scan_policy,
 )
 
 
 STEPS = 12
-VIS_TRAIN_EPISODES = 2000
-CPU_VIS_TRAIN_EPISODES = 2500
-
-
-def mask_from_indices(indices):
-    mask = 0
-    for idx in indices:
-        mask = set_bit(mask, idx)
-    return mask
+VIS_TRAIN_EPISODES = 2500
 
 
 def choose_action(policy, state):
@@ -55,7 +41,6 @@ def simulate(env, policy, start_state, steps=STEPS):
                 "action": action,
                 "reward": reward,
                 "total_reward": total_reward,
-                "next_state": next_state,
             }
         )
         state = next_state
@@ -65,42 +50,7 @@ def simulate(env, policy, start_state, steps=STEPS):
     return frames
 
 
-def render_linear_state(env, state, marker):
-    pos, _direction, mask = state
-    cells = []
-    for idx in range(env.n_positions):
-        if idx == pos and bit_is_set(mask, idx):
-            cells.append(f"[{marker}*]")
-        elif idx == pos:
-            cells.append(f"[{marker} ]")
-        elif bit_is_set(mask, idx):
-            cells.append("[ *]")
-        else:
-            cells.append(f"[{idx} ]")
-    return " ".join(cells)
-
-
-def render_disk_frame(env, frame):
-    pos, direction, _mask = frame["state"]
-    direction_label = "R" if direction == 1 else "L"
-    return (
-        f"t={frame['t']:02d} | {render_linear_state(env, frame['state'], 'H')} "
-        f"| track={pos} dir={direction_label} action={frame['action']:<10s} "
-        f"reward={frame['reward']:6.2f}"
-    )
-
-
-def render_elevator_frame(env, frame):
-    pos, direction, _mask = frame["state"]
-    direction_label = "U" if direction == 1 else "D"
-    return (
-        f"t={frame['t']:02d} | {render_linear_state(env, frame['state'], 'E')} "
-        f"| floor={pos} dir={direction_label} action={frame['action']:<10s} "
-        f"reward={frame['reward']:6.2f}"
-    )
-
-
-def render_cpu_frame(_env, frame):
+def render_cpu_frame(frame):
     s, m, l, mode = frame["state"]
     mode_names = {0: "idle", 1: "short", 2: "medium", 3: "long"}
     return (
@@ -111,13 +61,13 @@ def render_cpu_frame(_env, frame):
     )
 
 
-def print_policy_run(name, frames, render_frame, selected=False):
+def print_policy_run(name, frames, selected=False):
     label = f"{name} [SELECTED]" if selected else name
     total = frames[-1]["total_reward"] if frames else 0.0
     print(f"\n  {label}")
     print(f"  {'-' * len(label)}")
     for frame in frames:
-        print("  " + render_frame(frame))
+        print("  " + render_cpu_frame(frame))
     print(f"  Total return over {len(frames)} shown steps: {total:.2f}")
 
 
@@ -159,99 +109,32 @@ def train_learning_policies(env_factory, train_episodes, max_steps, seed_base):
     return policies
 
 
-def print_domain(title, subtitle):
-    print("\n" + "=" * 88)
-    print(title)
-    print(subtitle)
-    print("=" * 88)
+def main():
+    print("CPU Scheduling CLI Visualization")
+    print("# is one waiting job. Q-learning is the selected method.")
 
-
-def visualize_disk():
-    print_domain(
-        "Disk Head Scheduling",
-        "H is the disk head. * means a pending I/O request. [H*] means request at current head.",
-    )
-    start_state = (2, 1, mask_from_indices([0, 3]))
-    specs = [
-        ("Nearest", lambda env: linear_nearest_request_policy(env), False),
-        ("SCAN", lambda env: linear_scan_policy(env), False),
-        ("LOOK", lambda env: linear_look_policy(env), False),
-    ]
-    for idx, (name, policy_factory, selected) in enumerate(specs):
-        env = DiskSchedulingEnv(n_tracks=4, request_prob=0.08, seed=100 + idx)
-        frames = simulate(env, policy_factory(env), start_state)
-        print_policy_run(name, frames, lambda frame: render_disk_frame(env, frame), selected)
-
-    for name, env, policy, selected in train_learning_policies(
-        lambda seed: DiskSchedulingEnv(n_tracks=4, request_prob=0.08, seed=seed),
-        train_episodes=VIS_TRAIN_EPISODES,
-        max_steps=100,
-        seed_base=110,
-    ):
-        frames = simulate(env, policy, start_state)
-        print_policy_run(name, frames, lambda frame: render_disk_frame(env, frame), selected)
-
-
-def visualize_elevator():
-    print_domain(
-        "Elevator Pickup Scheduling",
-        "E is the elevator. * means a pending pickup call. [E*] means call at current floor.",
-    )
-    start_state = (2, 1, mask_from_indices([0, 3]))
-    specs = [
-        ("Nearest", lambda env: linear_nearest_request_policy(env), False),
-        ("Collective / SCAN", lambda env: linear_scan_policy(env), False),
-        ("LOOK", lambda env: linear_look_policy(env), False),
-    ]
-    for idx, (name, policy_factory, selected) in enumerate(specs):
-        env = ElevatorSchedulingEnv(n_floors=4, request_prob=0.10, seed=200 + idx)
-        frames = simulate(env, policy_factory(env), start_state)
-        print_policy_run(name, frames, lambda frame: render_elevator_frame(env, frame), selected)
-
-    for name, env, policy, selected in train_learning_policies(
-        lambda seed: ElevatorSchedulingEnv(n_floors=4, request_prob=0.10, seed=seed),
-        train_episodes=VIS_TRAIN_EPISODES,
-        max_steps=100,
-        seed_base=210,
-    ):
-        frames = simulate(env, policy, start_state)
-        print_policy_run(name, frames, lambda frame: render_elevator_frame(env, frame), selected)
-
-
-def visualize_cpu():
-    print_domain(
-        "CPU Job Scheduling",
-        "# is one waiting job in a queue. The mode is the class that ran most recently.",
-    )
     start_state = (2, 1, 2, CPUSchedulingEnv.MODE_NONE)
-    specs = [
-        ("Shortest Job First", lambda env: cpu_shortest_job_first_policy(env), False),
-        ("Longest Job First", lambda env: cpu_longest_job_first_policy(env), False),
-        ("Max Queue", lambda env: cpu_max_queue_policy(env), False),
-        ("Sticky", lambda env: cpu_sticky_policy(env), False),
+    env_kwargs = {"max_queue": 2, "arrival_probs": (0.35, 0.25, 0.15)}
+
+    heuristic_specs = [
+        ("Shortest Job First", cpu_shortest_job_first_policy),
+        ("Longest Job First", cpu_longest_job_first_policy),
+        ("Max Queue", cpu_max_queue_policy),
+        ("Sticky", cpu_sticky_policy),
     ]
-    for idx, (name, policy_factory, selected) in enumerate(specs):
-        env = CPUSchedulingEnv(max_queue=2, arrival_probs=(0.35, 0.25, 0.15), seed=300 + idx)
+    for idx, (name, policy_factory) in enumerate(heuristic_specs):
+        env = CPUSchedulingEnv(**env_kwargs, seed=300 + idx)
         frames = simulate(env, policy_factory(env), start_state)
-        print_policy_run(name, frames, lambda frame: render_cpu_frame(env, frame), selected)
+        print_policy_run(name, frames)
 
     for name, env, policy, selected in train_learning_policies(
-        lambda seed: CPUSchedulingEnv(max_queue=2, arrival_probs=(0.35, 0.25, 0.15), seed=seed),
-        train_episodes=CPU_VIS_TRAIN_EPISODES,
+        lambda seed: CPUSchedulingEnv(**env_kwargs, seed=seed),
+        train_episodes=VIS_TRAIN_EPISODES,
         max_steps=100,
         seed_base=310,
     ):
         frames = simulate(env, policy, start_state)
-        print_policy_run(name, frames, lambda frame: render_cpu_frame(env, frame), selected)
-
-
-def main():
-    print("Scheduling Policy CLI Visualization", flush=True)
-    print(f"Showing {STEPS} sampled steps per policy from the same domain-specific start state.", flush=True)
-    print("Q-learning is the selected method.", flush=True)
-    visualize_disk()
-    visualize_elevator()
-    visualize_cpu()
+        print_policy_run(name, frames, selected)
 
 
 if __name__ == "__main__":

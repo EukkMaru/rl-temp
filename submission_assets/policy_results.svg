@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="520" viewBox="0 0 920 520">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="460" y="30" text-anchor="middle" font-family="Arial" font-size="20" font-weight="700">CPU Scheduling Policy Comparison</text>
+<line x1="170" y1="50" x2="170" y2="440" stroke="#333"/>
+<line x1="170" y1="440" x2="880" y2="440" stroke="#333"/>
+<line x1="170.0" y1="50" x2="170.0" y2="440" stroke="#e6e6e6"/>
+<text x="170.0" y="464" text-anchor="middle" font-family="Arial" font-size="12">0</text>
+<line x1="285.9" y1="50" x2="285.9" y2="440" stroke="#e6e6e6"/>
+<text x="285.9" y="464" text-anchor="middle" font-family="Arial" font-size="12">20</text>
+<line x1="401.7" y1="50" x2="401.7" y2="440" stroke="#e6e6e6"/>
+<text x="401.7" y="464" text-anchor="middle" font-family="Arial" font-size="12">40</text>
+<line x1="517.6" y1="50" x2="517.6" y2="440" stroke="#e6e6e6"/>
+<text x="517.6" y="464" text-anchor="middle" font-family="Arial" font-size="12">60</text>
+<line x1="633.4" y1="50" x2="633.4" y2="440" stroke="#e6e6e6"/>
+<text x="633.4" y="464" text-anchor="middle" font-family="Arial" font-size="12">80</text>
+<line x1="749.3" y1="50" x2="749.3" y2="440" stroke="#e6e6e6"/>
+<text x="749.3" y="464" text-anchor="middle" font-family="Arial" font-size="12">100</text>
+<line x1="865.2" y1="50" x2="865.2" y2="440" stroke="#e6e6e6"/>
+<text x="865.2" y="464" text-anchor="middle" font-family="Arial" font-size="12">120</text>
+<text x="158" y="74.1" text-anchor="end" font-family="Arial" font-size="13">SJF</text>
+<rect x="170" y="50.0" width="612.9" height="36.5" fill="#2f6f9f" rx="3"/>
+<text x="789.9" y="74.1" font-family="Arial" font-size="13">105.80</text>
+<text x="158" y="124.6" text-anchor="end" font-family="Arial" font-size="13">LJF</text>
+<rect x="170" y="100.5" width="653.4" height="36.5" fill="#2f6f9f" rx="3"/>
+<text x="830.4" y="124.6" font-family="Arial" font-size="13">112.79</text>
+<text x="158" y="175.1" text-anchor="end" font-family="Arial" font-size="13">MaxQueue</text>
+<rect x="170" y="151.0" width="567.3" height="36.5" fill="#2f6f9f" rx="3"/>
+<text x="744.3" y="175.1" font-family="Arial" font-size="13">97.93</text>
+<text x="158" y="225.6" text-anchor="end" font-family="Arial" font-size="13">Sticky</text>
+<rect x="170" y="201.5" width="621.5" height="36.5" fill="#2f6f9f" rx="3"/>
+<text x="798.5" y="225.6" font-family="Arial" font-size="13">107.28</text>
+<text x="158" y="276.1" text-anchor="end" font-family="Arial" font-size="13">Value Iteration</text>
+<rect x="170" y="252.0" width="657.4" height="36.5" fill="#2f6f9f" rx="3"/>
+<text x="834.4" y="276.1" font-family="Arial" font-size="13">113.48</text>
+<text x="158" y="326.6" text-anchor="end" font-family="Arial" font-size="13">MC Control</text>
+<rect x="170" y="302.5" width="414.5" height="36.5" fill="#2f6f9f" rx="3"/>
+<text x="591.5" y="326.6" font-family="Arial" font-size="13">71.55</text>
+<text x="158" y="377.1" text-anchor="end" font-family="Arial" font-size="13">SARSA</text>
+<rect x="170" y="353.0" width="649.0" height="36.5" fill="#2f6f9f" rx="3"/>
+<text x="826.0" y="377.1" font-family="Arial" font-size="13">112.04</text>
+<text x="158" y="427.6" text-anchor="end" font-family="Arial" font-size="13">Q-learning (Selected)</text>
+<rect x="170" y="403.5" width="654.4" height="36.5" fill="#c7532c" rx="3"/>
+<text x="831.4" y="427.6" font-family="Arial" font-size="13">112.96</text>
+<text x="525.0" y="496" text-anchor="middle" font-family="Arial" font-size="13">Average undiscounted return over 500 fixed-seed episodes</text>
+</svg>

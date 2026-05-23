@@ -1,0 +1,517 @@
+"""Generate an interactive policy-comparison demo for the CPU scheduling MDP."""
+
+from __future__ import annotations
+
+import json
+import random
+from pathlib import Path
+
+from control_agents import QLearningAgent, SARSAAgent
+from cpu_scheduling_env import CPUSchedulingEnv
+from dp_solver import DynamicProgrammingSolver
+from rl_utils import greedy_policy_from_Q
+from scheduling_policies import (
+    cpu_longest_job_first_policy,
+    cpu_shortest_job_first_policy,
+    cpu_sticky_policy,
+)
+
+
+OUT_DIR = Path("submission_assets")
+OUT_FILE = OUT_DIR / "policy_demo.html"
+
+MAX_STEPS = 24
+TRAIN_EPISODES = 50_000
+START_STATE = (2, 1, 2, CPUSchedulingEnv.MODE_NONE)
+ENV_KWARGS = {
+    "max_queue": 2,
+    "arrival_probs": (0.35, 0.25, 0.15),
+}
+
+
+def best_action(policy, state):
+    return max(policy[state], key=policy[state].get)
+
+
+def policy_to_action_map(env, policy):
+    return {"|".join(str(part) for part in state): best_action(policy, state) for state in env.states}
+
+
+def build_policies():
+    env = CPUSchedulingEnv(**ENV_KWARGS, seed=2)
+    gamma = 0.95
+    alpha = 0.12
+    epsilon = 0.08
+
+    dp_policy, _dp_v = DynamicProgrammingSolver(env, gamma=gamma, theta=1e-4).value_iteration()
+
+    specs = [
+        ("Value Iteration", dp_policy, "#3b5f8a"),
+        ("Q-learning", train_q_learning(env, gamma, alpha, epsilon), "#c7532c"),
+        ("SARSA", train_sarsa(env, gamma, alpha, epsilon), "#6f8f3d"),
+        ("LJF", cpu_longest_job_first_policy(env), "#8b5ea7"),
+        ("Sticky", cpu_sticky_policy(env), "#607d8b"),
+        ("SJF", cpu_shortest_job_first_policy(env), "#3f8f8c"),
+    ]
+    return [
+        {
+            "name": name,
+            "color": color,
+            "actions": policy_to_action_map(env, policy),
+        }
+        for name, policy, color in specs
+    ]
+
+
+def reset_training_seed(env):
+    random.seed(0)
+    env.rng.seed(0)
+
+
+def train_q_learning(env, gamma, alpha, epsilon):
+    reset_training_seed(env)
+    agent = QLearningAgent(env, gamma=gamma, alpha=alpha, epsilon=epsilon, max_steps=100)
+    agent.train(num_episodes=TRAIN_EPISODES, start_state=env.start_state)
+    return greedy_policy_from_Q(env, agent.Q)
+
+
+def train_sarsa(env, gamma, alpha, epsilon):
+    reset_training_seed(env)
+    agent = SARSAAgent(env, gamma=gamma, alpha=alpha, epsilon=epsilon, max_steps=100)
+    agent.train(num_episodes=TRAIN_EPISODES, start_state=env.start_state)
+    return greedy_policy_from_Q(env, agent.Q)
+
+
+def build_arrivals(seed=8025):
+    rng = random.Random(seed)
+    probs = ENV_KWARGS["arrival_probs"]
+    arrivals = []
+    for _step in range(MAX_STEPS):
+        arrivals.append([1 if rng.random() < prob else 0 for prob in probs])
+    return arrivals
+
+
+def build_html(policies, arrivals):
+    payload = {
+        "policies": policies,
+        "arrivals": arrivals,
+        "startState": list(START_STATE),
+        "maxQueue": ENV_KWARGS["max_queue"],
+        "serviceRewards": [2.0, 2.5, 3.0],
+        "waitingCosts": [1.0, 1.0, 1.0],
+        "switchCost": 0.3,
+        "invalidPenalty": 2.0,
+        "idlePenalty": 0.1,
+        "maxSteps": MAX_STEPS,
+    }
+    data = json.dumps(payload, separators=(",", ":"))
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CPU Scheduling Policy Demo</title>
+  <style>
+    :root {{
+      --ink: #222;
+      --muted: #68707a;
+      --line: #d7dde5;
+      --bg: #ffffff;
+      --panel: #f8fafc;
+      --short: #bcd0ef;
+      --medium: #cfe2c7;
+      --long: #f3d9b8;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, sans-serif;
+    }}
+    .wrap {{
+      width: max-content;
+      max-width: calc(100vw - 32px);
+      margin: 16px auto;
+    }}
+    .top {{
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 20px;
+      margin-bottom: 10px;
+    }}
+    h1 {{
+      margin: 0;
+      font-size: 30px;
+      font-weight: 500;
+      letter-spacing: 0;
+    }}
+    .controls {{
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }}
+    button {{
+      border: 1px solid #9aa4b2;
+      background: #fff;
+      color: #222;
+      height: 32px;
+      padding: 0 13px;
+      border-radius: 6px;
+      font-size: 15px;
+      cursor: pointer;
+    }}
+    button:hover {{ background: #f0f4f8; }}
+    .step {{
+      min-width: 118px;
+      color: var(--muted);
+      font-size: 16px;
+      text-align: right;
+    }}
+    .arrival-strip {{
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 9px 12px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }}
+    .arrival-title {{
+      width: 86px;
+      font-weight: 700;
+      color: #444;
+    }}
+    .arrival-jobs {{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 28px;
+      flex-wrap: wrap;
+    }}
+    .job {{
+      width: 70px;
+      height: 24px;
+      border-radius: 5px;
+      border: 1px solid rgba(0,0,0,0.35);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #111;
+    }}
+    .short {{ background: var(--short); }}
+    .medium {{ background: var(--medium); }}
+    .long {{ background: var(--long); }}
+    .none {{
+      color: var(--muted);
+      font-size: 15px;
+    }}
+    .grid {{
+      display: grid;
+      grid-template-columns: 142px 450px 116px 112px 104px 88px;
+      width: max-content;
+      max-width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }}
+    .head, .cell {{
+      padding: 7px 8px;
+      border-bottom: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+    }}
+    .head {{
+      min-height: 34px;
+      font-weight: 700;
+      color: #44505c;
+      background: #edf2f7;
+    }}
+    .cell:nth-last-child(-n+6) {{ border-bottom: 0; }}
+    .head:nth-child(6n), .cell:nth-child(6n) {{ border-right: 0; }}
+    .policy {{
+      gap: 8px;
+      font-weight: 700;
+    }}
+    .swatch {{
+      width: 12px;
+      height: 28px;
+      border-radius: 4px;
+      flex: 0 0 auto;
+    }}
+    .queues {{
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px;
+      width: 100%;
+    }}
+    .queue {{
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      min-width: 0;
+    }}
+    .queue-label {{
+      width: 15px;
+      font-weight: 700;
+      color: #4b5563;
+      font-size: 13px;
+    }}
+    .slots {{
+      display: flex;
+      gap: 4px;
+    }}
+    .slot {{
+      width: 34px;
+      height: 22px;
+      border: 1px solid #9aa4b2;
+      border-radius: 5px;
+      background: #fff;
+    }}
+    .slot.filled.short {{ background: var(--short); }}
+    .slot.filled.medium {{ background: var(--medium); }}
+    .slot.filled.long {{ background: var(--long); }}
+    .action-pill {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 78px;
+      height: 27px;
+      border-radius: 6px;
+      border: 1px solid #aaa;
+      background: #fff;
+      font-weight: 700;
+      font-size: 14px;
+    }}
+    .score {{
+      font-size: 24px;
+      font-weight: 700;
+      justify-content: flex-end;
+    }}
+    .delta {{
+      font-size: 19px;
+      font-weight: 700;
+      justify-content: flex-end;
+    }}
+    .positive {{ color: #2f7d32; }}
+    .negative {{ color: #b23b3b; }}
+    .mode {{
+      color: #333;
+      font-weight: 700;
+    }}
+    .small {{
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 7px;
+    }}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <h1>Policy Rollout Demo</h1>
+      <div class="controls">
+        <button id="reset">Reset</button>
+        <button id="prev">Back</button>
+        <button id="next">Next Step</button>
+        <button id="play">Play</button>
+        <div class="step" id="stepLabel"></div>
+      </div>
+    </div>
+    <div class="arrival-strip">
+      <div class="arrival-title">Arrivals</div>
+      <div class="arrival-jobs" id="arrivalJobs"></div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="small">Each policy sees the same arrivals at every step. Score is cumulative undiscounted reward.</div>
+  </div>
+  <script>
+    const demo = {data};
+    const actionLabels = {{
+      run_short: "Run Short",
+      run_medium: "Run Medium",
+      run_long: "Run Long",
+      idle: "Idle"
+    }};
+    const classNames = ["short", "medium", "long"];
+    const modeNames = ["Idle", "Short", "Medium", "Long"];
+    const actionToClass = {{ run_short: 0, run_medium: 1, run_long: 2 }};
+    const classToMode = [1, 2, 3];
+    const headers = ["Policy", "Queues", "Current Mode", "Action", "Step Reward", "Score"];
+    let histories = [];
+    let currentStep = 0;
+    let timer = null;
+
+    function cloneState(state) {{
+      return [state[0], state[1], state[2], state[3]];
+    }}
+
+    function stateKey(state) {{
+      return state.join("|");
+    }}
+
+    function applyStep(state, action, arrival) {{
+      const next = cloneState(state);
+      let reward = 0;
+      let invalid = false;
+      if (Object.prototype.hasOwnProperty.call(actionToClass, action)) {{
+        const cls = actionToClass[action];
+        const targetMode = classToMode[cls];
+        if (next[cls] <= 0) {{
+          invalid = true;
+        }} else {{
+          next[cls] -= 1;
+          reward += demo.serviceRewards[cls];
+          if (next[3] !== 0 && next[3] !== targetMode) {{
+            reward -= demo.switchCost;
+          }}
+          next[3] = targetMode;
+        }}
+      }} else {{
+        next[3] = 0;
+        reward -= demo.idlePenalty;
+      }}
+      reward -= next[0] * demo.waitingCosts[0] + next[1] * demo.waitingCosts[1] + next[2] * demo.waitingCosts[2];
+      if (invalid) reward -= demo.invalidPenalty;
+      for (let i = 0; i < 3; i += 1) {{
+        if (arrival[i] && next[i] < demo.maxQueue) next[i] += 1;
+      }}
+      return {{ next, reward }};
+    }}
+
+    function buildHistories() {{
+      histories = demo.policies.map((policy) => {{
+        const frames = [];
+        let state = cloneState(demo.startState);
+        let score = 0;
+        for (let t = 0; t < demo.maxSteps; t += 1) {{
+          const action = policy.actions[stateKey(state)] || "idle";
+          const before = cloneState(state);
+          const result = applyStep(state, action, demo.arrivals[t]);
+          score += result.reward;
+          frames.push({{
+            t,
+            before,
+            action,
+            reward: result.reward,
+            score,
+            after: cloneState(result.next)
+          }});
+          state = result.next;
+        }}
+        return {{ ...policy, frames }};
+      }});
+    }}
+
+    function jobTag(cls, label) {{
+      return `<span class="job ${{cls}}">${{label}}</span>`;
+    }}
+
+    function renderArrivals(step) {{
+      const box = document.getElementById("arrivalJobs");
+      if (step >= demo.maxSteps) {{
+        box.innerHTML = '<span class="none">Scenario complete</span>';
+        return;
+      }}
+      const arrival = demo.arrivals[step];
+      const labels = ["Short", "Medium", "Long"];
+      const jobs = arrival.map((flag, idx) => flag ? jobTag(classNames[idx], labels[idx]) : "").join("");
+      box.innerHTML = jobs || '<span class="none">No new jobs arrive this step</span>';
+    }}
+
+    function renderQueue(state) {{
+      const labels = ["S", "M", "L"];
+      return `<div class="queues">${{[0, 1, 2].map((idx) => {{
+        const slots = [0, 1].map((slot) => {{
+          const filled = slot < state[idx] ? `filled ${{classNames[idx]}}` : "";
+          return `<span class="slot ${{filled}}"></span>`;
+        }}).join("");
+        return `<div class="queue"><span class="queue-label">${{labels[idx]}}</span><span class="slots">${{slots}}</span></div>`;
+      }}).join("")}}</div>`;
+    }}
+
+    function signed(value) {{
+      return `${{value >= 0 ? "+" : ""}}${{value.toFixed(2)}}`;
+    }}
+
+    function render() {{
+      const grid = document.getElementById("grid");
+      const stepForFrame = Math.min(currentStep, demo.maxSteps - 1);
+      const cells = headers.map((header) => `<div class="head">${{header}}</div>`);
+      for (const policy of histories) {{
+        const frame = policy.frames[stepForFrame];
+        const displayState = currentStep === demo.maxSteps ? frame.after : frame.before;
+        const displayScore = currentStep === demo.maxSteps ? frame.score : (stepForFrame === 0 ? 0 : policy.frames[stepForFrame - 1].score);
+        const rewardClass = frame.reward >= 0 ? "positive" : "negative";
+        cells.push(`<div class="cell policy"><span class="swatch" style="background:${{policy.color}}"></span>${{policy.name}}</div>`);
+        cells.push(`<div class="cell">${{renderQueue(displayState)}}</div>`);
+        cells.push(`<div class="cell mode">${{modeNames[displayState[3]]}}</div>`);
+        cells.push(`<div class="cell"><span class="action-pill">${{currentStep === demo.maxSteps ? "-" : actionLabels[frame.action]}}</span></div>`);
+        cells.push(`<div class="cell delta ${{currentStep === demo.maxSteps ? "" : rewardClass}}">${{currentStep === demo.maxSteps ? "-" : signed(frame.reward)}}</div>`);
+        cells.push(`<div class="cell score">${{displayScore.toFixed(2)}}</div>`);
+      }}
+      grid.innerHTML = cells.join("");
+      document.getElementById("stepLabel").textContent = `Step ${{Math.min(currentStep + 1, demo.maxSteps)}} / ${{demo.maxSteps}}`;
+      renderArrivals(currentStep);
+    }}
+
+    function stop() {{
+      if (timer) clearInterval(timer);
+      timer = null;
+      document.getElementById("play").textContent = "Play";
+    }}
+
+    document.getElementById("reset").addEventListener("click", () => {{
+      stop();
+      currentStep = 0;
+      render();
+    }});
+    document.getElementById("prev").addEventListener("click", () => {{
+      stop();
+      currentStep = Math.max(0, currentStep - 1);
+      render();
+    }});
+    document.getElementById("next").addEventListener("click", () => {{
+      stop();
+      currentStep = Math.min(demo.maxSteps, currentStep + 1);
+      render();
+    }});
+    document.getElementById("play").addEventListener("click", () => {{
+      if (timer) {{
+        stop();
+        return;
+      }}
+      document.getElementById("play").textContent = "Pause";
+      timer = setInterval(() => {{
+        if (currentStep >= demo.maxSteps) {{
+          stop();
+          return;
+        }}
+        currentStep += 1;
+        render();
+      }}, 950);
+    }});
+
+    buildHistories();
+    render();
+  </script>
+</body>
+</html>
+"""
+
+
+def main():
+    OUT_DIR.mkdir(exist_ok=True)
+    policies = build_policies()
+    arrivals = build_arrivals()
+    OUT_FILE.write_text(build_html(policies, arrivals), encoding="utf-8")
+    print(f"Wrote {OUT_FILE}")
+
+
+if __name__ == "__main__":
+    main()
