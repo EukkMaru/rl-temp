@@ -1,0 +1,5 @@
+Policy agreement between Value Iteration and Q-learning
+  total states           : 108
+  agreeing states        : 93
+  disagreeing states     : 15
+  action-agreement rate  : 0.8611  (86.11%)

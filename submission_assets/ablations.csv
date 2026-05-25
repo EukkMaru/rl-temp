@@ -1,0 +1,21 @@
+# ablation 1: switch_cost
+switch_cost,VI,Q-learning,SJF,Sticky,Q_sticky_share,VI_sticky_share
+0.0,123.8088,123.1392,116.6948,116.2432,0.3333,0.3210
+0.3,113.4830,112.9600,105.7982,107.2792,0.3704,0.4321
+1.0,91.9692,91.0026,80.3728,86.3632,0.4321,0.5309
+
+# ablation 2: state without mode
+VI,Q-learning (full),Q-learning (no mode)
+113.4830,112.9600,112.7190
+
+# ablation 3: arrival distribution
+regime,probs,VI,Q-learning,SJF,LJF,MaxQueue
+baseline,"(0.35, 0.25, 0.15)",113.4830,112.9600,105.7982,112.7856,97.9250
+short-heavy,"(0.5, 0.2, 0.1)",115.7126,115.5846,102.3388,115.5972,93.6058
+long-heavy,"(0.1, 0.2, 0.5)",150.8386,150.2414,150.1846,140.8076,135.2694
+
+"# ablation 4: hyperparameter grid (rows = alpha, cols = epsilon)"
+alpha\epsilon,0.02,0.08,0.2
+0.05,112.8498,113.0544,112.7898
+0.12,112.7784,112.9600,112.8896
+0.3,112.3076,112.5254,111.5426
